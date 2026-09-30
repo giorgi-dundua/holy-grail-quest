@@ -34,23 +34,23 @@ class Player(Character):
 
     def take(self, item: "Item"):
         self.inventory.append(item)
+        print(f"You have acquired: {item.name}")
+        print(f"Function: {item.function.title()}")
+        print(f"Effect: {item.effect}")
 
     def drop(self, item: "Item"):
         pass
 
     def use(self, item: "Item"):
-        if item in self.inventory:
-            if item.function == "heal":
-                if self.health == self.max_health:
-                    print(f"Cannot use {item.name}. Health already at maximum level.")
-                else:
-                    self.health = min(self.max_health, self.health + item.effect)
-                    print(
-                        f"You have used {item.name}. Your health is: {self.health}/{self.max_health}"
-                    )
-                    self.inventory.remove(item)
-        else:
-            print(f"You Don't have the {item}")
+        if item.function == "heal":
+            if self.health == self.max_health:
+                print(f"Cannot use {item.name}. Health already at maximum level.")
+            else:
+                self.health = min(self.max_health, self.health + item.effect)
+                print(
+                    f"You have used {item.name}. Your health is: {self.health}/{self.max_health}"
+                )
+                self.inventory.remove(item)
 
 
 class Item:
@@ -99,9 +99,10 @@ class Game:
 
         self.current_location = starting_path
         starting_path.connect("north", tiny_bridge)
-        # self.state = "running"  # other states "won", "lost", "quit"
+        self.state = "Running"  # other states "Won", "Lost", "Quit"
 
         self.player = Player("King Arthur", 100, 10)
+        self.player.health = 90
 
     def move(self, direction: str):
         if direction in self.current_location.exits:
@@ -166,30 +167,61 @@ class Game:
             available_actions.remove("Use")
         return available_actions
 
-    def choose_option(self, labels: list) -> int:
+    def choose_option(self, labels: list, allow_back=False) -> int | None:
         while True:
+            if allow_back:
+                print("0. Go back")
             user_choice = input(
                 "\n".join(f"{n}. {option}" for n, option in enumerate(labels, 1))
                 + "\nEnter corresponding number: "
             ).strip()
+            if allow_back and user_choice.isdigit() and int(user_choice) == 0:
+                return None
             if user_choice.isdigit() and 1 <= int(user_choice) <= len(labels):
+                print("=" * (len("Enter corresponding number: ") + 1))
                 return int(user_choice) - 1
             else:
                 print(
                     "Invalid choice. Please enter a number corresponding to an option."
                 )
+                print(
+                    "="
+                    * len(
+                        "Invalid choice. Please enter a number corresponding to an option."
+                    )
+                )
+
+    def handle_action(self, user_action):
+        if user_action == "look":
+            self.look()
+        if user_action == "take":
+            item_labels = [item.name for item in self.current_location.items]
+            user_choice = self.choose_option(item_labels, allow_back=True)
+            if user_choice is not None:
+                self.player.take(self.current_location.items[user_choice])
+                self.current_location.items.pop(user_choice)
+
+        if user_action == "use":
+            player_items = [item.name for item in self.player.inventory]
+            user_choice = self.choose_option(player_items, allow_back=True)
+            if user_choice is not None:
+                self.player.use(self.player.inventory[user_choice])
+
+        if user_action == "quit":
+            print(f"Brave {self.player.name} Ran Away!")
+            print("Bravely Ran Away Away!")
+            print(
+                "When danger reared its ugly head, he bravely turned his tail and fled!"
+            )
+            print("Yes, brave Sir Robin turned about,")
+            print("And gallantly, he chickened out!")
+            print("Swiftly taking to his feet, he beat a very brave retreat!")
+            print(f"Bravest of the Brave, {self.player.name.upper()}!")
+            self.state = "Quit"
 
     def run(self):
-        while True:
+        while self.state == "Running":
             self.display_situation()
             available_actions = self.get_available_actions()
             choice_index = self.choose_option(available_actions)
-            user_action = available_actions[choice_index].lower()
-
-            if user_action == "look":
-                self.look()
-            if user_action == "take":
-                pass
-            if user_action == "quit":
-                print("Right then! Off I go, bravely running away (away!)")
-                break
+            self.handle_action(user_action=available_actions[choice_index].lower())
