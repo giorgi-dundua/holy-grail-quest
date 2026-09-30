@@ -9,6 +9,8 @@ BASE_ACTIONS = ("Look", "Move", "Take", "Use", "Attack", "Status", "Quit")
 
 
 class Character:
+    """A character with health and a fixed damage value."""
+
     def __init__(self, name: str, max_health: int, damage: int) -> None:
         self.name = name
         self.max_health = max_health
@@ -18,30 +20,34 @@ class Character:
     def attack(self, target: "Character") -> None:
         pass
 
-    def take_damage(self, amount: int):
+    def take_damage(self, amount: int) -> None:
         pass
 
 
 class Enemy(Character):
-    pass
+    """A hostile character in the adventure."""
 
 
 class Player(Character):
+    """A character who can carry and use items."""
+
     def __init__(self, name: str, max_health: int, damage: int) -> None:
         super().__init__(name, max_health, damage)
 
-        self.inventory = []
+        self.inventory: list[Item] = []
 
-    def take(self, item: "Item"):
+    def take(self, item: "Item") -> None:
+        """Add an item to the inventory and show its details."""
         self.inventory.append(item)
         print(f"You have acquired: {item.name}")
         print(f"Function: {item.function.title()}")
         print(f"Effect: {item.effect}")
 
-    def drop(self, item: "Item"):
+    def drop(self, item: "Item") -> None:
         pass
 
-    def use(self, item: "Item"):
+    def use(self, item: "Item") -> None:
+        """Apply a healing item and consume it when it restores health."""
         if item.function == "heal":
             if self.health == self.max_health:
                 print(f"Cannot use {item.name}. Health already at maximum level.")
@@ -54,6 +60,8 @@ class Player(Character):
 
 
 class Item:
+    """An item with a named function and numeric effect."""
+
     def __init__(self, name: str, function: str, effect: int) -> None:
         self.name = name
         self.function = function
@@ -61,6 +69,8 @@ class Item:
 
 
 class Location:
+    """A place containing exits, items, and characters."""
+
     def __init__(
         self,
         name: str,
@@ -74,7 +84,9 @@ class Location:
         self.items = items if items is not None else []
 
     def connect(self, direction: str, other_location: "Location") -> None:
-        """Connects this location to another location"""
+        """Connect this location to another in both directions.
+        Raise ValueError if the direction has no known opposite.
+        """
         if direction not in OPPOSITE_DIRECTIONS:
             raise ValueError(
                 f"Unknown direction: '{direction}'. Must be one of {list(OPPOSITE_DIRECTIONS.keys())}"
@@ -87,6 +99,8 @@ class Location:
 
 
 class Game:
+    """Manage the player, world, and terminal command loop."""
+
     def __init__(self) -> None:
         emergency_biscuit = Item("Emergency Biscuit", "heal", 25)
         starting_path = Location(
@@ -104,13 +118,15 @@ class Game:
         self.player = Player("King Arthur", 100, 10)
         self.player.health = 90
 
-    def move(self, direction: str):
+    def move(self, direction: str) -> None:
+        """Move through an exit or report an invalid direction."""
         if direction in self.current_location.exits:
             self.current_location = self.current_location.exits[direction]
         else:
             print("Cannot go there")
 
-    def look(self):
+    def look(self) -> None:
+        """Display the current location's exits, characters, and items."""
         description = []
         description.append(f"Place: {self.current_location.name}")
         description.append(
@@ -129,20 +145,22 @@ class Game:
         )
         print("\n".join(description))
 
-    def talk(self):
+    def talk(self) -> None:
         pass
 
-    def status(self):
+    def status(self) -> None:
         pass
 
-    def get_living_character_names(self):
+    def get_living_character_names(self) -> list[str]:
+        """Return the names of characters here with health above zero."""
         return [
             character.name
             for character in self.current_location.characters
             if character.health > 0
         ]
 
-    def display_situation(self):
+    def display_situation(self) -> None:
+        """Display a brief summary before the action menu."""
         print(f"=== {self.current_location.name} ===")
         print(f"Health: {self.player.health}/{self.player.max_health}")
         items = self.current_location.items
@@ -154,8 +172,9 @@ class Game:
                 f"{', '.join(character for character in characters_alive)} blocking the path."
             )
 
-    def get_available_actions(self):
-        available_actions = list(BASE_ACTIONS)
+    def get_available_actions(self) -> list[str]:
+        """Return the actions currently offered in the main menu."""
+        available_actions: list[str] = list(BASE_ACTIONS)
         characters_alive = self.get_living_character_names()
         if characters_alive != []:
             available_actions.remove("Move")
@@ -167,7 +186,10 @@ class Game:
             available_actions.remove("Use")
         return available_actions
 
-    def choose_option(self, labels: list, allow_back=False) -> int | None:
+    def choose_option(self, labels: list[str], allow_back: bool = False) -> int | None:
+        """Ask for a numbered choice until the input is valid.
+        Return a zero-based index, or None when Back is allowed and selected.
+        """
         while True:
             if allow_back:
                 print("0. Go back")
@@ -191,7 +213,8 @@ class Game:
                     )
                 )
 
-    def handle_action(self, user_action):
+    def handle_action(self, user_action: str) -> None:
+        """Perform an implemented main-menu action."""
         if user_action == "look":
             self.look()
         if user_action == "take":
@@ -219,9 +242,11 @@ class Game:
             print(f"Bravest of the Brave, {self.player.name.upper()}!")
             self.state = "Quit"
 
-    def run(self):
+    def run(self) -> None:
+        """Repeat the command menu until the game state changes."""
         while self.state == "Running":
             self.display_situation()
             available_actions = self.get_available_actions()
             choice_index = self.choose_option(available_actions)
-            self.handle_action(user_action=available_actions[choice_index].lower())
+            if choice_index is not None:
+                self.handle_action(user_action=available_actions[choice_index].lower())
