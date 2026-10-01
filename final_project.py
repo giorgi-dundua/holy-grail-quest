@@ -1,3 +1,5 @@
+import textwrap
+
 OPPOSITE_DIRECTIONS = {
     "north": "south",
     "south": "north",
@@ -5,8 +7,11 @@ OPPOSITE_DIRECTIONS = {
     "west": "east",
 }
 
-BASE_ACTIONS = ("Look", "Move", "Take", "Use", "Attack", "Status", "Talk", "Quit")
+BASE_ACTIONS = ("Status", "Look", "Take", "Use", "Attack", "Talk", "Move", "Quit")
 TALK_OPTIONS = ("Ask to join", "Taunt")
+DASH_LINE = "--------------------------------------------------------"
+DASH_LINE_LEN = len(DASH_LINE)
+INDENT = "   "
 
 
 class Character:
@@ -50,7 +55,7 @@ class Player(Character):
 
     def use(self, item: "Item") -> None:
         """Apply a healing item and consume it when it restores health."""
-        if item.function == "heal":
+        if "health" in item.function:
             if self.health == self.max_health:
                 print(f"Cannot use {item.name}. Health already at maximum level.")
             else:
@@ -80,12 +85,14 @@ class Location:
         items: list["Item"] | None = None,
         characters: list["Character"] | None = None,
         exit_blockers: dict[str, Character] | None = None,
+        description: str = "",
     ) -> None:
         self.name = name
         self.exits = exits if exits is not None else {}
         self.characters = characters if characters is not None else []
         self.items = items if items is not None else []
         self.exit_blockers = exit_blockers if exit_blockers is not None else {}
+        self.description = description
 
     def connect(self, direction: str, other_location: "Location") -> None:
         """Connect this location to another in both directions.
@@ -107,6 +114,7 @@ class Game:
 
     def __init__(self) -> None:
         # Characters
+        king_arthur = Player("King Arthur", 100, 10)
         black_knight = Enemy("The Black Knight", 40, 5)
         patsy_servant = Character("Patsy the Servant", 1, 0, can_join=True)
         bedevere = Character("Bedevere", 1, 0)
@@ -115,26 +123,30 @@ class Game:
 
         # Items
         coconut_shells = Item(
-            "Coconut Shells", "Banging together to imitate horse-galloping", 0
+            "Coconut Shells", "banging together imitates horse-galloping", 0
         )
-        emergency_biscuit = Item("Emergency Biscuit", "heal", 25)
+        emergency_biscuit = Item("Emergency Biscuit", "restores up to 25 health", 25)
 
         # Locations
         starting_path = Location(
             "Starting Path",
             items=[coconut_shells],
             characters=[patsy_servant],
+            description="A muddy track leads north. The hoofprints suggest a horse of unusually consistent stride.",
         )
 
         black_knights_bridge = Location(
-            "Tiny Bridge",
+            "Black Knight's Bridge",
             items=[emergency_biscuit],
             characters=[black_knight],
             exit_blockers={"north": black_knight},
+            description="A narrow bridge crosses a stream of very little consequence. Turning around would require some planning.",
         )
 
         witch_trial_village = Location(
-            "Witch Trial Village", characters=[bedevere, witch, village_crowd]
+            "Witch Trial Village",
+            characters=[bedevere, witch, village_crowd],
+            description="The village square stands ready for a trial. Its standards of evidence are less ready.",
         )
 
         # Location connections
@@ -144,8 +156,7 @@ class Game:
 
         self.state = "Running"  # other states "Won", "Lost", "Quit"
 
-        self.player = Player("King Arthur", 100, 10)
-        self.player.health = 90
+        self.player = king_arthur
         self.party: list[Character] = [self.player]
 
     def move(self, direction: str) -> None:
@@ -161,26 +172,7 @@ class Game:
             return
 
         self.current_location = destination
-
-    def look(self) -> None:
-        """Display the current location's exits, characters, and items."""
-        description = []
-        description.append(f"Place: {self.current_location.name}")
-        description.append(
-            f"Exits: {
-                ', '.join(
-                    f'{direction.title()} - {location.name}'
-                    for direction, location in self.current_location.exits.items()
-                )
-            }"
-        )
-        description.append(
-            f"Characters at this location: {', '.join(character.name for character in self.current_location.characters)}"
-        )
-        description.append(
-            f"Items at this location: {', '.join(item.name for item in self.current_location.items)}"
-        )
-        print("\n".join(description))
+        self.show_place_description()
 
     def talk(self, character: Character) -> None:
         options: list[str] = list(TALK_OPTIONS)
@@ -196,7 +188,35 @@ class Game:
                 )
 
     def status(self) -> None:
-        pass
+        status_list = [
+            DASH_LINE,
+            f"STATUS - {self.player.name}",
+            DASH_LINE,
+            f"Health: {self.player.health}/{self.player.max_health}",
+            f"Attack damage: {self.player.damage}",
+            "",
+        ]
+        if len(self.party) > 1:
+            status_list.append("Companions:")
+            status_list.append(
+                "\n".join(f"{INDENT}{companion.name}" for companion in self.party[1:])
+            )
+        else:
+            status_list.append("Companions: none")
+        status_list.append("")
+        if self.player.inventory != []:
+            status_list.append("Inventory:")
+            status_list.append(
+                "\n".join(
+                    f"{INDENT}{item.name} - {item.function}"
+                    for item in self.player.inventory
+                )
+            )
+        else:
+            status_list.append("Inventory: empty")
+        status_list.append(DASH_LINE)
+
+        print("\n".join(status_list))
 
     def join_party(self, character: "Character"):
         if character in self.party:
@@ -225,20 +245,6 @@ class Game:
             if character.health > 0
         ]
 
-    def display_situation(self) -> None:
-        """Display a brief summary before the action menu."""
-        print(f"=== {self.current_location.name} ===")
-        print(f"Health: {self.player.health}/{self.player.max_health}")
-        print(f"Party: {', '.join(character.name for character in self.party)}")
-        items = self.current_location.items
-        if items != []:
-            print(f"Items: {', '.join(item.name for item in items)}")
-        characters_alive = self.get_living_characters()
-        if characters_alive != []:
-            print(
-                f"Characters: {', '.join(character.name for character in characters_alive)}"
-            )
-
     def get_available_actions(self) -> list[str]:
         """Return the actions currently offered in the main menu."""
         available_actions: list[str] = list(BASE_ACTIONS)
@@ -266,34 +272,23 @@ class Game:
                 "\n".join(
                     f"{n}. {option.title()}" for n, option in enumerate(labels, 1)
                 )
-                + "\nEnter corresponding number: "
+                + "\nChoose a number: "
             ).strip()
             if allow_back and user_choice.isdigit() and int(user_choice) == 0:
                 return None
             if user_choice.isdigit() and 1 <= int(user_choice) <= len(labels):
-                print("=" * (len("Enter corresponding number: ") + 1))
                 return int(user_choice) - 1
             else:
-                print(
-                    "Invalid choice. Please enter a number corresponding to an option."
-                )
-                print(
-                    "="
-                    * len(
-                        "Invalid choice. Please enter a number corresponding to an option."
-                    )
-                )
+                print("Invalid choice. Choose one of the numbers shown.")
+                print("=" * len("Invalid choice. Choose one of the numbers shown."))
 
     def handle_action(self, user_action: str) -> None:
         """Perform an implemented main-menu action."""
+        if user_action == "status":
+            self.status()
+
         if user_action == "look":
             self.look()
-
-        if user_action == "move":
-            exit_labels = list(self.current_location.exits)
-            user_choice = self.choose_option(exit_labels, allow_back=True)
-            if user_choice is not None:
-                self.move(exit_labels[user_choice])
 
         if user_action == "take":
             item_labels = [item.name for item in self.current_location.items]
@@ -320,22 +315,104 @@ class Game:
             if user_choice is not None:
                 self.talk(characters_alive[user_choice])
 
+        if user_action == "move":
+            exit_labels = list(self.current_location.exits)
+            user_choice = self.choose_option(exit_labels, allow_back=True)
+            if user_choice is not None:
+                self.move(exit_labels[user_choice])
+
         if user_action == "quit":
-            print(f"Brave {self.player.name} Ran Away!")
-            print("Bravely Ran Away Away!")
-            print(
-                "When danger reared its ugly head, he bravely turned his tail and fled!"
+            quit_labels = ["quit"]
+            user_choice = self.choose_option(quit_labels, allow_back=True)
+            if user_choice is not None:
+                print(f"Brave {self.player.name} Ran Away!")
+                print("Bravely Ran Away Away!")
+                print(
+                    "When danger reared its ugly head, he bravely turned his tail and fled!"
+                )
+                print("Yes, brave Sir Robin turned about,")
+                print("And gallantly, he chickened out!")
+                print("Swiftly taking to his feet, he beat a very brave retreat!")
+                print(f"Bravest of the Brave, {self.player.name.upper()}!")
+                self.state = "Quit"
+
+    def show_place_description(self) -> None:
+        centered_name = self.current_location.name.center(DASH_LINE_LEN)
+        wrapped_description = textwrap.fill(
+            self.current_location.description, width=DASH_LINE_LEN
+        )
+
+        output = f"{DASH_LINE}\n{centered_name}\n{DASH_LINE}\n{wrapped_description}"
+        print(output)
+
+    def display_summary(self) -> None:
+        """Display a brief summary before the action menu."""
+        summary = [""]
+        summary.append(f"--- {self.current_location.name} ---")
+        summary.append(f"Health: {self.player.health}/{self.player.max_health}")
+
+        # Conditional lines
+        if len(self.party) > 1:
+            summary.append(
+                f"Companions: {', '.join(character.name for character in self.party[1:])}"
             )
-            print("Yes, brave Sir Robin turned about,")
-            print("And gallantly, he chickened out!")
-            print("Swiftly taking to his feet, he beat a very brave retreat!")
-            print(f"Bravest of the Brave, {self.player.name.upper()}!")
-            self.state = "Quit"
+        living_characters = self.get_living_characters()
+        if living_characters != []:
+            summary.append(
+                f"Nearby: {', '.join(character.name for character in living_characters)}"
+            )
+        if self.current_location.items != []:
+            summary.append(
+                f"On the ground: {', '.join(item.name for item in self.current_location.items)}"
+            )
+
+        summary.append(
+            f"Exits: {', '.join(f'{direction.title()}' for direction in self.current_location.exits)}"
+        )
+        summary.append("")
+
+        print("\n".join(summary))
+
+    def look(self) -> None:
+        """Display the current location's exits, characters, and items."""
+        self.show_place_description()
+        look_list = [
+            "",
+            "Exits:",
+            "\n".join(
+                f"{INDENT}{direction.title()} - {location.name}{f' (blocked by {self.current_location.exit_blockers[direction].name})' if self.current_location.exit_blockers.get(direction) is not None and self.current_location.exit_blockers[direction].health > 0 else ''}"
+                for direction, location in self.current_location.exits.items()
+            ),
+            "",
+        ]
+        if self.current_location.characters == []:
+            look_list.append("Nearby: no one")
+        else:
+            look_list.append("Nearby:")
+            look_list.append(
+                "\n".join(
+                    f"{INDENT}{character.name}{' - defeated' if character.health == 0 else ''}"
+                    for character in self.current_location.characters
+                )
+            )
+        if self.current_location.items == []:
+            look_list.append("On the ground: nothing")
+        else:
+            look_list.append("On the ground:")
+            look_list.append(
+                "\n".join(
+                    f"{INDENT}{item.name} - {item.function}"
+                    for item in self.current_location.items
+                )
+            )
+        look_list.append("")
+        print("\n".join(look_list))
 
     def run(self) -> None:
+        self.show_place_description()
         """Repeat the command menu until the game state changes."""
         while self.state == "Running":
-            self.display_situation()
+            self.display_summary()
             available_actions = self.get_available_actions()
             choice_index = self.choose_option(available_actions)
             if choice_index is not None:
