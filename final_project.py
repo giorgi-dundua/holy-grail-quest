@@ -1,3 +1,4 @@
+import random
 import textwrap
 
 OPPOSITE_DIRECTIONS = {
@@ -17,18 +18,43 @@ INDENT = "   "
 class Character:
     """A character with health and a fixed damage value."""
 
-    def __init__(self, name: str, max_health: int, damage: int, can_join=False) -> None:
+    def __init__(
+        self,
+        name: str,
+        max_health: int,
+        damage: int,
+        can_join=False,
+        hurt_message: list[str] | None = None,
+        defeat_message: str | None = None,
+        block_message="",
+    ) -> None:
         self.name = name
         self.max_health = max_health
         self.health = max_health
         self.damage = damage
         self.can_join = can_join
+        self.hurt_message = hurt_message
+        self.defeat_message = (
+            defeat_message
+            if defeat_message is not None
+            else f"{self.name} is defeated."
+        )
+        self.block_message = block_message
 
     def attack(self, target: "Character") -> None:
+        print(f"{self.name} strikes {target.name} for {self.damage} damage.")
         target.take_damage(self.damage)
 
     def take_damage(self, amount: int) -> None:
         self.health = max(0, self.health - amount)
+        if self.health == 0:
+            print(self.defeat_message)
+            print()
+        else:
+            if self.hurt_message is not None:
+                print(random.choice(self.hurt_message))
+            print(f"{self.name}'s health: {self.health}/{self.max_health}")
+            print()
 
 
 class Enemy(Character):
@@ -115,7 +141,21 @@ class Game:
     def __init__(self) -> None:
         # Characters
         king_arthur = Player("King Arthur", 100, 10)
-        black_knight = Enemy("The Black Knight", 40, 5)
+        black_knight = Enemy(
+            "The Black Knight",
+            max_health=40,
+            damage=5,
+            hurt_message=[
+                "Tis but a scratch.",
+                "I've had worse.",
+                "Just a flesh wound.",
+            ],
+            defeat_message=textwrap.fill(
+                "Defeated limbless Black Knight: Oh, oh, I see. Running away, eh? You yellow bastards! Come back here and take what's coming to you! I'll bite your legs off!",
+                width=DASH_LINE_LEN,
+            ),
+            block_message="None shall pass",
+        )
         patsy_servant = Character("Patsy the Servant", 1, 0, can_join=True)
         bedevere = Character("Bedevere", 1, 0)
         witch = Character("Witch", 1, 0)
@@ -237,6 +277,25 @@ class Game:
             else f"{character.name} joins the party."
         )
 
+    def fight_round(self, enemy):
+        self.player.attack(enemy)
+        if enemy.health > 0:
+            enemy.attack(self.player)
+        else:
+            opened_exit = next(
+                (
+                    direction
+                    for direction, blocker in self.current_location.exit_blockers.items()
+                    if blocker == enemy
+                ),
+                None,
+            )
+            if opened_exit is not None:
+                print(f"The {opened_exit} exit is now clear.")
+
+        if self.player.health == 0:
+            self.state = "Lost"
+
     def get_living_characters(self) -> list["Character"]:
         """Return the characters here with health above zero."""
         return [
@@ -304,7 +363,16 @@ class Game:
                 self.player.use(self.player.inventory[user_choice])
 
         if user_action == "attack":
-            pass
+            alive_enemies = [
+                enemy
+                for enemy in self.current_location.characters
+                if enemy.health > 0 and isinstance(enemy, Enemy)
+            ]
+            enemy_names = [enemy.name for enemy in alive_enemies]
+            user_choice = self.choose_option(enemy_names, allow_back=True)
+            if user_choice is not None:
+                enemy = alive_enemies[user_choice]
+                self.fight_round(enemy)
 
         if user_action == "talk":
             characters_alive = self.get_living_characters()
