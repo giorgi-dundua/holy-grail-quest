@@ -14,6 +14,27 @@ DASH_LINE = "--------------------------------------------------------"
 DASH_LINE_LEN = len(DASH_LINE)
 INDENT = "   "
 
+CHAPTER_COMPLETE = f"""\
+{DASH_LINE}
+{"CHAPTER COMPLETE".center(DASH_LINE_LEN)}
+{DASH_LINE}
+The bridge is crossed. The Black Knight objects.
+His objection has been noted and walked past.
+Ahead lies Witch Trial Village.
+The quest continues. This chapter, however, does not.
+{DASH_LINE}
+"""
+
+GAME_OVER = f"""\
+{DASH_LINE}
+{"GAME OVER".center(DASH_LINE_LEN)}
+{DASH_LINE}
+Your quest ends here. The Grail remains unfound.
+Applications for a replacement king will be accepted
+in due course. Please bring your own coconuts.
+{DASH_LINE}
+"""
+
 
 class Character:
     """A character with health and a fixed damage value."""
@@ -23,10 +44,10 @@ class Character:
         name: str,
         max_health: int,
         damage: int,
-        can_join=False,
+        can_join: bool = False,
         hurt_message: list[str] | None = None,
         defeat_message: str | None = None,
-        block_message="",
+        block_message: str = "",
     ) -> None:
         self.name = name
         self.max_health = max_health
@@ -46,15 +67,16 @@ class Character:
         target.take_damage(self.damage)
 
     def take_damage(self, amount: int) -> None:
+        """Reduce health without going below zero and report the result."""
         self.health = max(0, self.health - amount)
+
         if self.health == 0:
             print(self.defeat_message)
-            print()
-        else:
-            if self.hurt_message is not None:
-                print(random.choice(self.hurt_message))
-            print(f"{self.name}'s health: {self.health}/{self.max_health}")
-            print()
+        elif self.hurt_message:
+            print(random.choice(self.hurt_message))
+
+        print(f"{self.name}'s health: {self.health}/{self.max_health}")
+        print()
 
 
 class Enemy(Character):
@@ -70,35 +92,45 @@ class Player(Character):
         self.inventory: list[Item] = []
 
     def take(self, item: "Item") -> None:
-        """Add an item to the inventory and show its details."""
+        """Add an item to the inventory and show its description."""
         self.inventory.append(item)
         print(f"You have acquired: {item.name}")
-        print(f"Function: {item.function.title()}")
-        print(f"Effect: {item.effect}")
-
-    def drop(self, item: "Item") -> None:
-        pass
+        print(item.description)
 
     def use(self, item: "Item") -> None:
-        """Apply a healing item and consume it when it restores health."""
-        if "health" in item.function:
-            if self.health == self.max_health:
-                print(f"Cannot use {item.name}. Health already at maximum level.")
-            else:
-                self.health = min(self.max_health, self.health + item.effect)
-                print(
-                    f"You have used {item.name}. Your health is: {self.health}/{self.max_health}"
-                )
-                self.inventory.remove(item)
+        """Use a carried healing item and consume it after restoring health."""
+        if item not in self.inventory:
+            print(f"You are not carrying {item.name}.")
+            return
+        if item.function != "heal":
+            print(f"{item.name} has no usable effect here.")
+            return
+
+        if self.health == self.max_health:
+            print(f"Cannot use {item.name}. Health is already full.")
+            return
+
+        self.health = min(self.max_health, self.health + item.effect)
+        self.inventory.remove(item)
+        print(
+            f"You used {item.name}. Your health is now: {self.health}/{self.max_health}"
+        )
 
 
 class Item:
     """An item with a named function and numeric effect."""
 
-    def __init__(self, name: str, function: str, effect: int) -> None:
+    def __init__(
+        self,
+        name: str,
+        function: str,
+        effect: int,
+        description: str,
+    ) -> None:
         self.name = name
         self.function = function
         self.effect = effect
+        self.description = description
 
 
 class Location:
@@ -140,11 +172,11 @@ class Game:
 
     def __init__(self) -> None:
         # Characters
-        king_arthur = Player("King Arthur", 100, 10)
+        king_arthur = Player("King Arthur", 50, 10)
         black_knight = Enemy(
             "The Black Knight",
             max_health=40,
-            damage=5,
+            damage=20,
             hurt_message=[
                 "Tis but a scratch.",
                 "I've had worse.",
@@ -163,9 +195,17 @@ class Game:
 
         # Items
         coconut_shells = Item(
-            "Coconut Shells", "banging together imitates horse-galloping", 0
+            "Coconut Shells",
+            function="prop",
+            effect=0,
+            description="banging together imitates horse-galloping",
         )
-        emergency_biscuit = Item("Emergency Biscuit", "restores up to 25 health", 25)
+        emergency_biscuit = Item(
+            "Emergency Biscuit",
+            function="heal",
+            effect=25,
+            description="restores up to 25 health",
+        )
 
         # Locations
         starting_path = Location(
@@ -191,6 +231,7 @@ class Game:
 
         # Location connections
         self.current_location = starting_path
+        self.goal_location = witch_trial_village
         starting_path.connect("north", black_knights_bridge)
         black_knights_bridge.connect("north", witch_trial_village)
 
@@ -209,10 +250,14 @@ class Game:
         blocker = self.current_location.exit_blockers.get(direction)
         if blocker is not None and blocker.health > 0:
             print(f"{blocker.name} bars the {direction} exit.")
+            if blocker.block_message:
+                print(f"{blocker.name}: {blocker.block_message}")
             return
 
         self.current_location = destination
         self.show_place_description()
+        if self.current_location is self.goal_location:
+            self.state = "Won"
 
     def talk(self, character: Character) -> None:
         options: list[str] = list(TALK_OPTIONS)
@@ -248,7 +293,7 @@ class Game:
             status_list.append("Inventory:")
             status_list.append(
                 "\n".join(
-                    f"{INDENT}{item.name} - {item.function}"
+                    f"{INDENT}{item.name} - {item.description}"
                     for item in self.player.inventory
                 )
             )
@@ -258,7 +303,7 @@ class Game:
 
         print("\n".join(status_list))
 
-    def join_party(self, character: "Character"):
+    def join_party(self, character: Character) -> None:
         if character in self.party:
             print(f"{character.name} is already travelling with you.")
             return
@@ -277,7 +322,7 @@ class Game:
             else f"{character.name} joins the party."
         )
 
-    def fight_round(self, enemy):
+    def fight_round(self, enemy: Enemy) -> None:
         self.player.attack(enemy)
         if enemy.health > 0:
             enemy.attack(self.player)
@@ -286,7 +331,7 @@ class Game:
                 (
                     direction
                     for direction, blocker in self.current_location.exit_blockers.items()
-                    if blocker == enemy
+                    if blocker is enemy
                 ),
                 None,
             )
@@ -469,7 +514,7 @@ class Game:
             look_list.append("On the ground:")
             look_list.append(
                 "\n".join(
-                    f"{INDENT}{item.name} - {item.function}"
+                    f"{INDENT}{item.name} - {item.description}"
                     for item in self.current_location.items
                 )
             )
@@ -477,11 +522,18 @@ class Game:
         print("\n".join(look_list))
 
     def run(self) -> None:
-        self.show_place_description()
         """Repeat the command menu until the game state changes."""
+        self.show_place_description()
+
         while self.state == "Running":
             self.display_summary()
             available_actions = self.get_available_actions()
             choice_index = self.choose_option(available_actions)
+
             if choice_index is not None:
                 self.handle_action(user_action=available_actions[choice_index].lower())
+
+        if self.state == "Won":
+            print(CHAPTER_COMPLETE)
+        elif self.state == "Lost":
+            print(GAME_OVER)
