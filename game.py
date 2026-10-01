@@ -394,6 +394,7 @@ class Game:
                     for character in self.current_location.characters
                 )
             )
+        look_list.append("")
         if self.current_location.items == []:
             look_list.append("On the ground: nothing")
         else:
@@ -404,7 +405,7 @@ class Game:
                     for item in self.current_location.items
                 )
             )
-        look_list.append("")
+        # look_list.append("")
         print("\n".join(look_list))
 
     def run(self) -> None:
