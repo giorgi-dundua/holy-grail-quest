@@ -38,7 +38,7 @@ in due course. Please bring your own coconuts.
 
 
 class Game:
-    """Manage the player, world, and terminal command loop."""
+    """Manage the player, and world"""
 
     def __init__(self) -> None:
         # Characters
@@ -124,54 +124,9 @@ class Game:
             return move_message
 
         self.current_location = destination
-        move_message = self.show_place_description()
         if self.current_location is self.goal_location:
             self.state = "Won"
-        return move_message
-
-    def talk(self, character: Character) -> None:
-        options: list[str] = list(TALK_OPTIONS)
-        if not character.can_join:
-            options.remove("Ask to join")
-        user_choice = self.choose_option(options, allow_back=True)
-        if user_choice is not None:
-            if options[user_choice] == "Ask to join":
-                print(self.join_party(character))
-            if options[user_choice] == "Taunt":
-                print(
-                    f"{self.player.name} delivers an insult. The conversation fails to improve."
-                )
-
-    def status(self) -> None:
-        status_list = [
-            DASH_LINE,
-            f"STATUS - {self.player.name}",
-            DASH_LINE,
-            f"Health: {self.player.health}/{self.player.max_health}",
-            f"Attack damage: {self.player.damage}",
-            "",
-        ]
-        if len(self.party) > 1:
-            status_list.append("Companions:")
-            status_list.append(
-                "\n".join(f"{INDENT}{companion.name}" for companion in self.party[1:])
-            )
-        else:
-            status_list.append("Companions: none")
-        status_list.append("")
-        if self.player.inventory != []:
-            status_list.append("Inventory:")
-            status_list.append(
-                "\n".join(
-                    f"{INDENT}{item.name} - {item.description}"
-                    for item in self.player.inventory
-                )
-            )
-        else:
-            status_list.append("Inventory: empty")
-        status_list.append(DASH_LINE)
-
-        print("\n".join(status_list))
+        return f"You arrive at {self.current_location.name}."
 
     def join_party(self, character: Character) -> str:
         if character in self.party:
@@ -233,147 +188,3 @@ class Game:
         if not characters_alive:
             available_actions.remove("Talk")
         return available_actions
-
-    def choose_option(
-        self,
-        labels: list[str],
-        allow_back: bool = False,
-        heading: str = "Choose an option:",
-    ) -> int | None:
-        """Return a selected index, or None when the player goes back."""
-        while True:
-            print(DASH_LINE)
-            print(heading)
-
-            if allow_back:
-                print("0. Go back")
-
-            for number, label in enumerate(labels, 1):
-                print(f"{number}. {label.title()}")
-
-            print(DASH_LINE)
-            user_choice = input("Choose a number: ").strip()
-
-            if allow_back and user_choice.isdigit() and int(user_choice) == 0:
-                print()
-                return None
-
-            if user_choice.isdigit() and 1 <= int(user_choice) <= len(labels):
-                print()
-                return int(user_choice) - 1
-
-            print("Invalid choice. Choose one of the numbers shown.")
-            print()
-
-    def handle_action(self, user_action: str) -> None:
-        """Perform an implemented main-menu action."""
-        if user_action == "status":
-            self.status()
-
-        if user_action == "look":
-            self.look()
-
-        if user_action == "take":
-            item_labels = [item.name for item in self.current_location.items]
-            user_choice = self.choose_option(item_labels, allow_back=True)
-            if user_choice is not None:
-                print(self.player.take(self.current_location.items[user_choice]))
-                self.current_location.items.pop(user_choice)
-
-        if user_action == "use":
-            player_items = [item.name for item in self.player.inventory]
-            user_choice = self.choose_option(player_items, allow_back=True)
-            if user_choice is not None:
-                print(self.player.use(self.player.inventory[user_choice]))
-
-        if user_action == "attack":
-            alive_enemies = [
-                enemy
-                for enemy in self.current_location.characters
-                if enemy.health > 0 and isinstance(enemy, Enemy)
-            ]
-            enemy_names = [enemy.name for enemy in alive_enemies]
-            user_choice = self.choose_option(enemy_names, allow_back=True)
-            if user_choice is not None:
-                enemy = alive_enemies[user_choice]
-                print(self.fight_round(enemy))
-
-        if user_action == "talk":
-            characters_alive = self.get_living_characters()
-            user_choice = self.choose_option(
-                [character.name for character in characters_alive],
-                allow_back=True,
-            )
-            if user_choice is not None:
-                self.talk(characters_alive[user_choice])
-
-        if user_action == "move":
-            exit_labels = list(self.current_location.exits)
-            user_choice = self.choose_option(exit_labels, allow_back=True)
-            if user_choice is not None:
-                print(self.move(exit_labels[user_choice]))
-
-        if user_action == "quit":
-            user_choice = self.choose_option(
-                ["Quit"],
-                allow_back=True,
-                heading="Leave the quest?",
-            )
-
-            if user_choice is not None:
-                print(DASH_LINE)
-                print(f"Brave {self.player.name} Ran Away!")
-                print("Bravely Ran Away Away!")
-                print(
-                    "When danger reared its ugly head, he bravely turned his tail and fled!"
-                )
-                print(f"Yes, brave {self.player.name} turned about,")
-                print("And gallantly, he chickened out!")
-                print("Swiftly taking to his feet, he beat a very brave retreat!")
-                print(f"Bravest of the Brave, {self.player.name.upper()}!")
-                print(DASH_LINE)
-                self.state = "Quit"
-
-    def show_place_description(self) -> str:
-        centered_name = self.current_location.name.center(DASH_LINE_LEN)
-        wrapped_description = textwrap.fill(
-            self.current_location.description, width=DASH_LINE_LEN
-        )
-
-        return f"{DASH_LINE}\n{centered_name}\n{DASH_LINE}\n{wrapped_description}"
-
-    def look(self) -> None:
-        """Display the current location's exits, characters, and items."""
-        print(self.show_place_description())
-        look_list = [
-            "",
-            "Exits:",
-            "\n".join(
-                f"{INDENT}{direction.title()} - {location.name}{f' (blocked by {self.current_location.exit_blockers[direction].name})' if self.current_location.exit_blockers.get(direction) is not None and self.current_location.exit_blockers[direction].health > 0 else ''}"
-                for direction, location in self.current_location.exits.items()
-            ),
-            "",
-        ]
-        if self.current_location.characters == []:
-            look_list.append("Nearby: no one")
-        else:
-            look_list.append("Nearby:")
-            look_list.append(
-                "\n".join(
-                    f"{INDENT}{character.name}{' - defeated' if character.health == 0 else ''}"
-                    for character in self.current_location.characters
-                )
-            )
-        look_list.append("")
-        if self.current_location.items == []:
-            look_list.append("On the ground: nothing")
-        else:
-            look_list.append("On the ground:")
-            look_list.append(
-                "\n".join(
-                    f"{INDENT}{item.name} - {item.description}"
-                    for item in self.current_location.items
-                )
-            )
-        # look_list.append("")
-        print("\n".join(look_list))

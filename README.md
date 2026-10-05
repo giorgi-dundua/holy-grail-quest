@@ -34,7 +34,8 @@ In selection menus, enter `0` to go back.
 ## Project files
 
 - `main.py` starts the program.
-- `game.py` creates the world and handles the game loop and menus.
+- `game.py` creates the world and rules.
+- `terminal.py` handles loop, menus and rendering. 
 - `models.py` contains the character, item, and location classes.
 
 The terminal chapter was completed for the Lexicon Python Fundamentals assignment.
