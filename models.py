@@ -34,21 +34,20 @@ class Character:
         )
         self.block_message = block_message
 
-    def attack(self, target: "Character") -> None:
-        print(f"{self.name} strikes {target.name} for {self.damage} damage.")
-        target.take_damage(self.damage)
+    def attack(self, target: "Character") -> str:
+        return f"{self.name} strikes {target.name} for {self.damage} damage.\n{target.take_damage(self.damage)}"
 
-    def take_damage(self, amount: int) -> None:
+    def take_damage(self, amount: int) -> str:
         """Reduce health without going below zero and report the result."""
         self.health = max(0, self.health - amount)
 
+        damage_msg = ""
         if self.health == 0:
-            print(self.defeat_message)
+            damage_msg = self.defeat_message
         elif self.hurt_message:
-            print(random.choice(self.hurt_message))
+            damage_msg = random.choice(self.hurt_message)
 
-        print(f"{self.name}'s health: {self.health}/{self.max_health}")
-        print()
+        return f"{damage_msg}\n{self.name}'s health: {self.health}/{self.max_health}"
 
 
 class Enemy(Character):
@@ -63,28 +62,24 @@ class Player(Character):
 
         self.inventory: list[Item] = []
 
-    def take(self, item: "Item") -> None:
+    def take(self, item: "Item") -> str:
         """Add an item to the inventory and show its description."""
         self.inventory.append(item)
-        print(f"You have acquired: {item.name}")
-        print(item.description)
+        return f"You have acquired: {item.name}\n{item.description}"
 
-    def use(self, item: "Item") -> None:
+    def use(self, item: "Item") -> str:
         """Use a carried healing item and consume it after restoring health."""
         if item not in self.inventory:
-            print(f"You are not carrying {item.name}.")
-            return
+            return f"You are not carrying {item.name}."
         if item.function != "heal":
-            print(f"{item.name} has no usable effect here.")
-            return
+            return f"{item.name} has no usable effect here."
 
         if self.health == self.max_health:
-            print(f"Cannot use {item.name}. Health is already full.")
-            return
+            return f"Cannot use {item.name}. Health is already full."
 
         self.health = min(self.max_health, self.health + item.effect)
         self.inventory.remove(item)
-        print(
+        return (
             f"You used {item.name}. Your health is now: {self.health}/{self.max_health}"
         )
 

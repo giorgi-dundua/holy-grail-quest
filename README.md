@@ -1,6 +1,4 @@
-# Python Fundamentals Project
-
-## Holy Grail Quest
+# Holy Grail Quest
 
 A small terminal adventure inspired by Monty Python and the Holy Grail.
 
@@ -39,4 +37,6 @@ In selection menus, enter `0` to go back.
 - `game.py` creates the world and handles the game loop and menus.
 - `models.py` contains the character, item, and location classes.
 
-This project was made for the Lexicon Python Fundamentals assignment.
+The terminal chapter was completed for the Lexicon Python Fundamentals assignment.
+Further development is a learning-led hobby project toward a retro browser version.
+The browser version is planned and has not been implemented yet.
