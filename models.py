@@ -14,6 +14,7 @@ class Character:
     def __init__(
         self,
         name: str,
+        id: str,
         max_health: int,
         damage: int,
         can_join: bool = False,
@@ -22,6 +23,7 @@ class Character:
         block_message: str = "",
     ) -> None:
         self.name = name
+        self.id = id
         self.max_health = max_health
         self.health = max_health
         self.damage = damage
@@ -57,8 +59,8 @@ class Enemy(Character):
 class Player(Character):
     """A character who can carry and use items."""
 
-    def __init__(self, name: str, max_health: int, damage: int) -> None:
-        super().__init__(name, max_health, damage)
+    def __init__(self, name: str, id: str, max_health: int, damage: int) -> None:
+        super().__init__(name, id, max_health, damage)
 
         self.inventory: list[Item] = []
 
@@ -88,16 +90,13 @@ class Item:
     """An item with a named function and numeric effect."""
 
     def __init__(
-        self,
-        name: str,
-        function: str,
-        effect: int,
-        description: str,
+        self, name: str, function: str, effect: int, description: str, id: str
     ) -> None:
         self.name = name
         self.function = function
         self.effect = effect
         self.description = description
+        self.id = id
 
 
 class Location:

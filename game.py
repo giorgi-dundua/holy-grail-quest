@@ -42,9 +42,10 @@ class Game:
 
     def __init__(self) -> None:
         # Characters
-        king_arthur = Player("King Arthur", 50, 10)
+        king_arthur = Player("King Arthur", "king", 50, 10)
         black_knight = Enemy(
             "The Black Knight",
+            "black_knight",
             max_health=40,
             damage=20,
             hurt_message=[
@@ -58,10 +59,10 @@ class Game:
             ),
             block_message="None shall pass",
         )
-        patsy_servant = Character("Patsy the Servant", 1, 0, can_join=True)
-        bedevere = Character("Bedevere", 1, 0)
-        witch = Character("Witch", 1, 0)
-        village_crowd = Character("Villagers", 1, 0)
+        patsy_servant = Character("Patsy the Servant", "patsy", 1, 0, can_join=True)
+        bedevere = Character("Sir Bedevere the Wise", "bedevere", 1, 0)
+        witch = Character("Witch", "village_witch", 1, 0)
+        village_crowd = Character("Villagers", "witch_villagers", 1, 0)
 
         # Items
         coconut_shells = Item(
@@ -69,12 +70,14 @@ class Game:
             function="prop",
             effect=0,
             description="banging together imitates horse-galloping",
+            id="coconut",
         )
         emergency_biscuit = Item(
             "Emergency Biscuit",
             function="heal",
             effect=25,
             description="restores up to 25 health",
+            id="biscuit",
         )
 
         # Locations
@@ -198,31 +201,48 @@ class Game:
                 "characters": [
                     {
                         "name": character.name,
+                        "id": character.id,
                         "health": character.health,
                         "max_health": character.max_health,
                     }
                     for character in self.current_location.characters
                 ],
                 "items": [
-                    {"name": item.name, "description": item.description}
+                    {"name": item.name, "description": item.description, "id": item.id}
                     for item in self.current_location.items
+                ],
+                "exits": [
+                    {
+                        "direction": direction,
+                        "destination": destination.name,
+                        "blocked": bool(
+                            self.current_location.exit_blockers.get(direction)
+                            is not None
+                            and self.current_location.exit_blockers[direction].health
+                            > 0
+                        ),
+                    }
+                    for direction, destination in self.current_location.exits.items()
                 ],
             },
             "player": {
                 "name": self.player.name,
+                "id": self.player.id,
                 "health": self.player.health,
                 "max_health": self.player.max_health,
                 "inventory": [
-                    {"name": item.name, "description": item.description}
+                    {"name": item.name, "description": item.description, "id": item.id}
                     for item in self.player.inventory
                 ],
             },
             "party": [
                 {
                     "name": member.name,
+                    "id": member.id,
                     "health": member.health,
                     "max_health": member.max_health,
                 }
                 for member in self.party
             ],
+            "actions": self.get_available_actions() if self.state == "Running" else [],
         }
