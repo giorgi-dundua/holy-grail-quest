@@ -113,8 +113,43 @@ class Game:
         self.player = king_arthur
         self.party: list[Character] = [self.player]
 
+    def take_item(self, item_id: str) -> str:
+        if self.state != "Running":
+            return "The quest is over. The narrator has gone for tea."
+        for item in self.current_location.items:
+            if item.id == item_id:
+                self.current_location.items.remove(item)
+                return self.player.take(item)
+        return "That item is not here. Royal authority cannot collect thin air."
+
+    def use_item(self, item_id: str) -> str:
+        if self.state != "Running":
+            return "The quest is over. The narrator has gone for tea."
+        for item in self.player.inventory:
+            if item.id == item_id:
+                return self.player.use(item)
+        return "You are not carrying that item. Even kings must check their baggage."
+
+    def attack_enemy(self, enemy_id: str) -> str:
+        if self.state != "Running":
+            return "The quest is over. The narrator has gone for tea."
+        for enemy in self.current_location.characters:
+            if enemy.id == enemy_id and enemy.health > 0 and isinstance(enemy, Enemy):
+                return self.fight_round(enemy)
+        return "That target is not a living enemy here. The Ministry of Pointless Violence declines your request."
+
+    def join_character(self, character_id: str) -> str:
+        if self.state != "Running":
+            return "The quest is over. The narrator has gone for tea."
+        for character in self.current_location.characters:
+            if character.id == character_id and character.health > 0:
+                return self.join_party(character)
+        return "That person is not available to recruit here. Even royal invitations require a living recipient."
+
     def move(self, direction: str) -> str:
         """Attempt to leave the current location in the chosen direction."""
+        if self.state != "Running":
+            return "The quest is over. The narrator has gone for tea."
         destination = self.current_location.exits.get(direction)
         if destination is None:
             return f"No path leads {direction} from here."
@@ -167,6 +202,21 @@ class Game:
         if self.player.health == 0:
             self.state = "Lost"
         return "\n".join(fight_msg)
+
+    def quit_game(self) -> str:
+        if self.state != "Running":
+            return "The quest is over. The narrator has gone for tea."
+        self.state = "Quit"
+        farewell = [
+            f"Brave {self.player.name} Ran Away!",
+            "Bravely Ran Away Away!",
+            "When danger reared its ugly head, he bravely turned his tail and fled!",
+            f"Yes, brave {self.player.name} turned about,",
+            "And gallantly, he chickened out!",
+            "Swiftly taking to his feet, he beat a very brave retreat!",
+            f"Bravest of the Brave, {self.player.name.upper()}!",
+        ]
+        return "\n".join(farewell)
 
     def get_living_characters(self) -> list["Character"]:
         """Return the characters here with health above zero."""
