@@ -188,3 +188,41 @@ class Game:
         if not characters_alive:
             available_actions.remove("Talk")
         return available_actions
+
+    def get_state(self) -> dict:
+        return {
+            "state": self.state,
+            "location": {
+                "name": self.current_location.name,
+                "description": self.current_location.description,
+                "characters": [
+                    {
+                        "name": character.name,
+                        "health": character.health,
+                        "max_health": character.max_health,
+                    }
+                    for character in self.current_location.characters
+                ],
+                "items": [
+                    {"name": item.name, "description": item.description}
+                    for item in self.current_location.items
+                ],
+            },
+            "player": {
+                "name": self.player.name,
+                "health": self.player.health,
+                "max_health": self.player.max_health,
+                "inventory": [
+                    {"name": item.name, "description": item.description}
+                    for item in self.player.inventory
+                ],
+            },
+            "party": [
+                {
+                    "name": member.name,
+                    "health": member.health,
+                    "max_health": member.max_health,
+                }
+                for member in self.party
+            ],
+        }
