@@ -296,3 +296,23 @@ class Game:
             ],
             "actions": self.get_available_actions() if self.state == "Running" else [],
         }
+
+    def perform_action(self, action: str, target: str | None = None) -> str:
+        if self.state != "Running":
+            return "The quest is over. The narrator has gone for tea."
+        if target is None and action == "quit":
+            return self.quit_game()
+        if target and isinstance(target, str):
+            if action == "take":
+                return self.take_item(target)
+            if action == "use":
+                return self.use_item(target)
+            if action == "attack":
+                return self.attack_enemy(target)
+            if action == "join":
+                return self.join_character(target)
+            if action == "move":
+                return self.move(target)
+        return (
+            "That request is not valid. The royal scribes insist on a sensible order."
+        )

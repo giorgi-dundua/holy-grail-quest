@@ -79,13 +79,17 @@ def handle_action(game: Game, user_action: str) -> None:
         item_labels = [item.name for item in game.current_location.items]
         user_choice = choose_option(item_labels, allow_back=True)
         if user_choice is not None:
-            print(game.take_item(game.current_location.items[user_choice].id))
+            print(
+                game.perform_action(
+                    user_action, game.current_location.items[user_choice].id
+                )
+            )
 
     if user_action == "use":
         player_items = [item.name for item in game.player.inventory]
         user_choice = choose_option(player_items, allow_back=True)
         if user_choice is not None:
-            print(game.use_item(game.player.inventory[user_choice].id))
+            print(game.perform_action(user_action, game.player.inventory[user_choice].id))
 
     if user_action == "attack":
         alive_enemies = [
@@ -97,7 +101,7 @@ def handle_action(game: Game, user_action: str) -> None:
         user_choice = choose_option(enemy_names, allow_back=True)
         if user_choice is not None:
             enemy_id = alive_enemies[user_choice].id
-            print(game.attack_enemy(enemy_id))
+            print(game.perform_action(user_action, enemy_id))
 
     if user_action == "talk":
         characters_alive = game.get_living_characters()
@@ -113,7 +117,7 @@ def handle_action(game: Game, user_action: str) -> None:
         user_choice = choose_option(exit_labels, allow_back=True)
         if user_choice is not None:
             previous_location = game.current_location
-            move_return = game.move(exit_labels[user_choice])
+            move_return = game.perform_action(user_action, exit_labels[user_choice])
             if previous_location is not game.current_location:
                 print(show_place_description(game))
             else:
@@ -128,7 +132,7 @@ def handle_action(game: Game, user_action: str) -> None:
 
         if user_choice is not None:
             print(DASH_LINE)
-            print(game.quit_game())
+            print(game.perform_action("quit"))
             print(DASH_LINE)
 
 
@@ -139,7 +143,7 @@ def talk(game: Game, character: Character) -> None:
     user_choice = choose_option(options, allow_back=True)
     if user_choice is not None:
         if options[user_choice] == "Ask to join":
-            print(game.join_character(character.id))
+            print(game.perform_action("join", character.id))
         if options[user_choice] == "Taunt":
             print(
                 f"{game.player.name} delivers an insult. The conversation fails to improve."
